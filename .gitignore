@@ -1,0 +1,9 @@
+# 🔐 Секретні ключі (ніколи не пушити)
+openai_token.txt
+bot_token.txt
+
+# ⚙️ Тимчасові файли
+nohup.out
+*.save
+__pycache__/
+.env
