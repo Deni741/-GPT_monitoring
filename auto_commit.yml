@@ -1,0 +1,28 @@
+name: Auto Commit by GPT
+
+on:
+  workflow_dispatch:  # запуск вручну через GitHub
+  push:
+    branches:
+      - main
+
+jobs:
+  commit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Make change
+        run: |
+          echo "# Created by AI" > core_auto_engine.py
+
+      - name: Commit & push
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+        run: |
+          git config --global user.name "GPT-Auto"
+          git config --global user.email "auto@gpt.bot"
+          git add core_auto_engine.py
+          git commit -m "test: автостворення core_auto_engine.py"
+          git push https://x-access-token:${GH_TOKEN}@github.com/Deni741/-GPT_monitoring.git HEAD:main
