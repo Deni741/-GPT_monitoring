@@ -25,4 +25,4 @@ jobs:
           git config --global user.email "auto@gpt.bot"
           git add core_auto_engine.py
           git commit -m "test: автостворення core_auto_engine.py"
-          git push https://x-access-token:${GH_TOKEN}@github.com/Deni741/-GPT_monitoring.git HEAD:main
+          git push https://${GH_TOKEN}@github.com/Deni741/-GPT_monitoring.git HEAD:main
