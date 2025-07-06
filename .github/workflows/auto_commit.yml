@@ -2,13 +2,13 @@ name: Auto Commit by GPT
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - main
 
 jobs:
   commit:
     runs-on: ubuntu-latest
+
+    permissions:
+      contents: write  # ⬅️ Дозвіл на push
 
     steps:
       - name: Checkout repository
@@ -24,5 +24,3 @@ jobs:
           author_name: GPT-Auto
           author_email: auto@gpt.bot
           message: "test: автозбереження core_auto_engine.py"
-        env:
-          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
