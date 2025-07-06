@@ -13,16 +13,20 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v3
 
+      - name: Setup Git credentials
+        run: |
+          git config --global user.name "GPT-Auto"
+          git config --global user.email "auto@gpt.bot"
+
       - name: Make change
         run: |
           echo "# Created by AI" > core_auto_engine.py
 
-      - name: Commit & push
+      - name: Commit & Push
         env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
         run: |
-          git config --global user.name "GPT-Auto"
-          git config --global user.email "auto@gpt.bot"
           git add core_auto_engine.py
-          git commit -m "test: автозбереження core_auto_engine.py"
-          git push https://x-access-token:${{ secrets.GH_TOKEN }}@github.com/Deni741/-GPT_monitoring.git HEAD:main
+          git commit -m "test: автозбереження core_auto_engine.py" || echo "No changes to commit"
+          git remote set-url origin https://x-access-token:${GH_TOKEN}@github.com/Deni741/-GPT_monitoring.git
+          git push origin HEAD:main
