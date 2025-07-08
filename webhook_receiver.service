@@ -1,0 +1,14 @@
+[Unit]
+Description=GPT Monitoring Webhook Receiver
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/root/telegram-bot
+ExecStart=/usr/bin/python3 /root/telegram-bot/webhook_receiver.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
