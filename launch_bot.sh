@@ -1,6 +1,6 @@
 #!/bin/bash
 
-cd /root/telegram-bot || exit 1
+cd /root/GPT_monitoring || exit 1
 
 echo "🔴 Зупиняю старого бота (якщо запущено)..."
 pkill -f "python3 main.py"
