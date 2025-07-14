@@ -1,29 +1,21 @@
 from flask import Flask, request
 import subprocess
 import logging
-import os
 
 app = Flask(__name__)
 
-# Налаштування логування
-logging.basicConfig(filename='/root/GPT_monitoring/webhook_log.txt', level=logging.INFO)
+logging.basicConfig(
+    filename='/root/GPT_monitoring/webhook.log',
+    level=logging.INFO,
+    format='%(asctime)s %(levelname)s: %(message)s'
+)
 
-@app.route("/", methods=["POST"])
+@app.route('/webhook', methods=['POST'])
 def webhook():
     try:
-        data = request.json
-        logging.info(f"Received webhook event: {data}")
+        logging.info("Webhook received.")
 
-        # Виконуємо git pull
-        repo_path = "/root/GPT_monitoring"
-        pull_result = subprocess.run(
-            ["git", "-C", repo_path, "pull"],
-            capture_output=True,
-            text=True
-        )
-        logging.info(f"Git pull output:\n{pull_result.stdout}\nErrors:\n{pull_result.stderr}")
-
-        # Перезапускаємо telegram_bot.service
+        # Перезапуск бота
         restart_result = subprocess.run(
             ["systemctl", "restart", "telegram_bot.service"],
             capture_output=True,
@@ -35,8 +27,7 @@ def webhook():
 
     except Exception as e:
         logging.error(f"Error handling webhook: {e}")
-        return "Error processing webhook", 500
+        return "Error", 500
 
-if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 8080))
-    app.run(host="0.0.0.0", port=port)
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5000)
