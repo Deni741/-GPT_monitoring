@@ -1,40 +1,51 @@
-#!/usr/bin/env python3
-
+import http.server
+import json
+import subprocess
+import telegram
 import os
-from http.server import BaseHTTPRequestHandler, HTTPServer
-from datetime import datetime
+from dotenv import load_dotenv
 
-LOG_FILE = "/root/GPT_monitoring/update_log.txt"
-REPO_DIR = "/root/GPT_monitoring"
-SERVICE_NAME = "telegram_bot.service"
+# Завантажуємо токен Telegram та ID
+load_dotenv('/root/GPT_monitoring/.env')
+TELEGRAM_TOKEN = os.getenv('TELEGRAM_TOKEN')
+TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')
 
-class WebhookHandler(BaseHTTPRequestHandler):
+bot = telegram.Bot(token=TELEGRAM_TOKEN)
+
+class WebhookHandler(http.server.BaseHTTPRequestHandler):
     def do_POST(self):
-        now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        log_entry = f"[{now}] GitHub Webhook received\n"
+        content_length = int(self.headers['Content-Length'])
+        body = self.rfile.read(content_length)
 
         try:
-            os.chdir(REPO_DIR)
-            pull_result = os.popen("git pull origin main").read()
-            log_entry += f"[{now}] Git pull:\n{pull_result}\n"
-        except Exception as e:
-            log_entry += f"[{now}] Git pull error: {e}\n"
+            payload = json.loads(body)
+            commits = payload.get("commits", [])
+            repo_name = payload.get("repository", {}).get("name", "невідомо")
 
-        try:
-            restart_result = os.popen(f"systemctl restart {SERVICE_NAME}").read()
-            log_entry += f"[{now}] Restart:\n{restart_result}\n"
-        except Exception as e:
-            log_entry += f"[{now}] Restart error: {e}\n"
+            if commits:
+                for commit in commits:
+                    message = commit.get("message", "без повідомлення")
+                    author = commit.get("committer", {}).get("name", "невідомий")
+                    commit_url = commit.get("url", "")
+                    sha = commit.get("id", "")[:7]
 
-        with open(LOG_FILE, "a") as f:
-            f.write(log_entry + "\n")
+                    text = f"🔄 <b>Оновлення в GitHub ({repo_name})</b>\n" \
+                           f"👤 Автор: <code>{author}</code>\n" \
+                           f"💬 Повідомлення: <code>{message}</code>\n" \
+                           f"🔗 <a href='{commit_url}'>{sha}</a>"
+
+                    bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=text, parse_mode=telegram.constants.ParseMode.HTML)
+            else:
+                bot.send_message(chat_id=TELEGRAM_CHAT_ID, text="⚠️ Отримано Webhook без комітів.")
+
+        except Exception as e:
+            bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=f"❌ Помилка обробки Webhook: {e}")
 
         self.send_response(200)
         self.end_headers()
-        self.wfile.write(b"Webhook received and processed.\n")
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     server_address = ('', 8080)
-    httpd = HTTPServer(server_address, WebhookHandler)
-    print("Starting webhook receiver on port 8080...")
+    httpd = http.server.HTTPServer(server_address, WebhookHandler)
+    print('Слухаємо порт 8080...')
     httpd.serve_forever()
