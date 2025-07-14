@@ -1,61 +1,71 @@
-
 import os
 import logging
 from dotenv import load_dotenv
 from telegram import Update
-from telegram.ext import ApplicationBuilder, ContextTypes, MessageHandler, CommandHandler, filters
-import openai
+from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes, MessageHandler, filters
+from openai import OpenAI
+import asyncio
 
-# Завантаження .env змінних
-load_dotenv('/root/GPT_monitoring/.env')
+# =============== 1. ЗАВАНТАЖЕННЯ ЗМІННИХ ====================
+load_dotenv()
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
-# Налаштування логування
+# =============== 2. ЛОГУВАННЯ ===============================
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     level=logging.INFO
 )
 
-# Ініціалізація OpenAI
-openai.api_key = OPENAI_API_KEY
+# =============== 3. ІНІЦІАЛІЗАЦІЯ OPENAI ====================
+client = OpenAI(api_key=OPENAI_API_KEY)
 
-# GPT-відповідь
-async def ask_gpt(prompt):
+# =============== 4. ОБРОБНИК КОМАНДИ /start =================
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("Привіт! Надішли мені запит або скористайся командою /ask")
+
+# =============== 5. ОБРОБНИК КОМАНДИ /ask ===================
+async def ask(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    prompt = " ".join(context.args)
+    if not prompt:
+        await update.message.reply_text("Будь ласка, введи запит після команди /ask")
+        return
+
     try:
-        response = openai.ChatCompletion.create(
+        response = client.chat.completions.create(
             model="gpt-4",
-            messages=[
-                {"role": "system", "content": "Ти — корисний Telegram-бот, помічник користувача."},
-                {"role": "user", "content": prompt}
-            ],
-            max_tokens=1000,
+            messages=[{"role": "user", "content": prompt}],
             temperature=0.7
         )
-        return response['choices'][0]['message']['content']
+        reply_text = response.choices[0].message.content
+        await update.message.reply_text(reply_text)
+
     except Exception as e:
-        return f"❌ Помилка GPT: {e}"
+        await update.message.reply_text(f"❌ Помилка GPT:\n{e}")
 
-# Обробник повідомлень
+# =============== 6. ОБРОБНИК ЗВИЧАЙНОГО ПОВІДОМЛЕННЯ ========
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_message = update.message.text
-    logging.info(f"📩 Отримано повідомлення: {user_message}")
-    reply = await ask_gpt(user_message)
-    await context.bot.send_message(chat_id=update.effective_chat.id, text=reply)
+    prompt = update.message.text
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.7
+        )
+        reply_text = response.choices[0].message.content
+        await update.message.reply_text(reply_text)
 
-# /start команда
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await context.bot.send_message(chat_id=update.effective_chat.id, text="👋 Привіт! Я GPT-помічник. Надішли мені повідомлення, і я відповім.")
+    except Exception as e:
+        await update.message.reply_text(f"❌ Помилка GPT:\n{e}")
 
-# Головна функція
-def main():
-    application = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
+# =============== 7. MAIN ====================================
+if __name__ == '__main__':
+    app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
 
-    application.add_handler(CommandHandler("start", start))
-    application.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message))
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("ask", ask))
+    app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message))
 
-    application.run_polling()
-
-if __name__ == "__main__":
-    main()
+    print("Бот запущено 🚀")
+    app.run_polling()
