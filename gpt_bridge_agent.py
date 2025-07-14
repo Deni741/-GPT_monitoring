@@ -22,7 +22,7 @@ def webhook():
         logging.info("Виконую git pull...")
         subprocess.run(['git', 'pull'], check=True)
 
-        # Перезапуск сервісу telegram_bot
+        # Перезапуск telegram bot
         logging.info("Перезапускаю telegram_bot.service...")
         subprocess.run(['systemctl', 'restart', 'telegram_bot.service'], check=True)
 
@@ -34,4 +34,5 @@ def webhook():
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
 if __name__ == '__main__':
+    logging.info("Запускається Flask-сервер на порту 8989...")
     app.run(host='0.0.0.0', port=8989)
