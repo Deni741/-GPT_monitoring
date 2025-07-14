@@ -10,7 +10,8 @@ load_dotenv('/root/GPT_monitoring/.env')
 TELEGRAM_TOKEN = os.getenv('TELEGRAM_TOKEN')
 TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')
 
-bot = telegram.Bot(token=TELEGRAM_TOKEN)
+
+bot = telegram.Bot(token="8108237988:AAEa3aj8WOuLMwk11DPmRc_eqFt-WKP1NY8")
 
 class WebhookHandler(http.server.BaseHTTPRequestHandler):
     def do_POST(self):
