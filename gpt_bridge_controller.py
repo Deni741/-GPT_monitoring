@@ -3,6 +3,7 @@ import subprocess
 from flask import Flask, request, jsonify, abort
 from dotenv import load_dotenv
 
+# Завантаження .env
 load_dotenv(dotenv_path="/root/GPT_monitoring/.env")
 
 ACCESS_TOKEN = os.getenv("GPT_CONTROLLER_TOKEN")
@@ -10,13 +11,18 @@ BOT_SERVICE = "telegram_bot.service"
 
 app = Flask(__name__)
 
+# Авторизація
 def check_token():
-    token = request.headers.get("Authorization")
-    print("Отриманий токен:", token)
-    print("Правильний токен:", ACCESS_TOKEN)
+    raw_token = request.headers.get("Authorization")
+    if raw_token and raw_token.startswith("Bearer "):
+        token = raw_token[len("Bearer "):]  # Видаляє "Bearer "
+    else:
+        token = raw_token
+
     if not token or token != ACCESS_TOKEN:
         abort(401, description="Unauthorized")
 
+# /pull
 @app.route("/pull", methods=["POST"])
 def pull_code():
     check_token()
@@ -26,6 +32,7 @@ def pull_code():
     except subprocess.CalledProcessError as e:
         return jsonify({"status": "error", "output": e.output.decode()}), 500
 
+# /restart
 @app.route("/restart", methods=["POST"])
 def restart_service():
     check_token()
@@ -35,6 +42,7 @@ def restart_service():
     except subprocess.CalledProcessError as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
+# /status
 @app.route("/status", methods=["GET"])
 def check_status():
     check_token()
@@ -44,23 +52,5 @@ def check_status():
     except subprocess.CalledProcessError as e:
         return jsonify({"status": "error", "output": e.output.decode()}), 500
 
-@app.route("/logs", methods=["GET"])
-def get_logs():
-    check_token()
-    try:
-        output = subprocess.check_output(["journalctl", "-u", BOT_SERVICE, "-n", "50", "--no-pager"], stderr=subprocess.STDOUT)
-        return jsonify({"status": "success", "output": output.decode()}), 200
-    except subprocess.CalledProcessError as e:
-        return jsonify({"status": "error", "output": e.output.decode()}), 500
-
-@app.route("/webhook", methods=["POST"])
-def handle_webhook():
-    check_token()
-    try:
-        subprocess.run(["systemctl", "restart", BOT_SERVICE], check=True)
-        return jsonify({"status": "ok", "message": "Webhook received and bot restarted"}), 200
-    except subprocess.CalledProcessError as e:
-        return jsonify({"status": "error", "message": str(e)}), 500
-
 if __name__ == "__main__":
-    app.run(debug=True, host="0.0.0.0", port=8998)
+    app.run(host="0.0.0.0", port=8998, debug=True)
