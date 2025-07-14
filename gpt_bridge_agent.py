@@ -1,37 +1,35 @@
 from flask import Flask, request, jsonify
-import subprocess
 import os
+import subprocess
+import logging
 
 app = Flask(__name__)
 
-@app.route('/exec')
-def exec_cmd():
-    cmd = request.args.get('cmd')
-    if not cmd:
-        return jsonify({"error": "No command provided"}), 400
-    try:
-        output = subprocess.check_output(cmd, shell=True, stderr=subprocess.STDOUT, timeout=10)
-        return jsonify({"output": output.decode()}), 200
-    except subprocess.CalledProcessError as e:
-        return jsonify({"error": e.output.decode()}), 500
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+# ????????? ? ????
+logging.basicConfig(filename='/root/GPT_monitoring/webhook_log.txt', level=logging.INFO, format='%(asctime)s - %(message)s')
 
 @app.route('/webhook', methods=['POST'])
 def webhook():
     try:
-        repo_dir = "/root/GPT_monitoring"
-        # Перехід у директорію з ботом
-        os.chdir(repo_dir)
-        # Оновлення коду
-        pull = subprocess.check_output("git pull", shell=True).decode()
-        # Перезапуск бота
-        subprocess.check_output("systemctl restart telegram_bot.service", shell=True)
-        return jsonify({"status": "ok", "git": pull}), 200
-    except subprocess.CalledProcessError as e:
-        return jsonify({"error": e.output.decode()}), 500
+        logging.info("Webhook triggered.")
+
+        # ??????? ?? ?????????? ???????
+        os.chdir('/root/GPT_monitoring')
+
+        # Git pull
+        logging.info("Running git pull...")
+        subprocess.run(['git', 'pull'], check=True)
+
+        # ?????????? ??????? telegram_bot
+        logging.info("Restarting telegram_bot.service...")
+        subprocess.run(['systemctl', 'restart', 'telegram_bot.service'], check=True)
+
+        logging.info("Webhook processing complete.")
+        return jsonify({'status': 'ok', 'message': 'Bot updated and restarted'}), 200
+
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        logging.error(f"Error during webhook execution: {str(e)}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8989)
