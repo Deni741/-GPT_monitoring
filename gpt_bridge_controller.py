@@ -3,7 +3,7 @@ import subprocess
 from flask import Flask, request, jsonify, abort
 from dotenv import load_dotenv
 
-load_dotenv()
+load_dotenv(dotenv_path="/root/GPT_monitoring/.env")
 
 ACCESS_TOKEN = os.getenv("GPT_CONTROLLER_TOKEN")
 BOT_SERVICE = "telegram_bot.service"
