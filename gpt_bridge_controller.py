@@ -12,8 +12,8 @@ app = Flask(__name__)
 
 def check_token():
     token = request.headers.get("Authorization")
-print("Отриманий токен:", token)
-print("Правильний токен:", ACCESS_TOKEN)
+    print("Отриманий токен:", token)
+    print("Правильний токен:", ACCESS_TOKEN)
     if not token or token != ACCESS_TOKEN:
         abort(401, description="Unauthorized")
 
