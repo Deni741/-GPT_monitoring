@@ -1,11 +1,12 @@
-from git_manager import write_file
+# agent_writer.py
 
-# Шлях до файлу
-target_path = 'Memory/system_log.md'
-
-# Вміст, який запишемо
-message = "✅ Перша запис GPT через write_file — успішно!"
-
-# Виконання
-result = write_file(target_path, message)
-print(result)
+def write_memory(entry):
+    file_path = "Memory/system_log.md"
+    try:
+        with open(file_path, "a", encoding="utf-8") as f:
+            f.write(entry + "\n")
+        print("[✓] Запис до памʼяті успішний!")
+        return True
+    except Exception as e:
+        print(f"[X] Помилка при записі до памʼяті: {e}")
+        return False
