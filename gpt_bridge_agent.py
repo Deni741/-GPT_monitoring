@@ -1,3 +1,13 @@
+import socket
+import sys
+
+def is_port_in_use(port):
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        return s.connect_ex(('localhost', port)) == 0
+
+if is_port_in_use(8989):
+    print("❌ Port 8989 already in use. Exiting...")
+    sys.exit(1)
 from flask import Flask, request, jsonify
 import os
 import subprocess
