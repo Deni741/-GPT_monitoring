@@ -51,5 +51,14 @@ def get_logs():
     except subprocess.CalledProcessError as e:
         return jsonify({"status": "error", "output": e.output.decode()}), 500
 
+@app.route("/webhook", methods=["POST"])
+def handle_webhook():
+    check_token()
+    try:
+        subprocess.run(["systemctl", "restart", BOT_SERVICE], check=True)
+        return jsonify({"status": "ok", "message": "Webhook received and bot restarted"}), 200
+    except subprocess.CalledProcessError as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0", port=8998)
