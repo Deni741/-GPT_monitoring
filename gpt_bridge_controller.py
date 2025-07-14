@@ -1,11 +1,36 @@
-from flask import Flask, request, jsonify
 import os
 import subprocess
+from flask import Flask, request, jsonify, abort
+
+from dotenv import load_dotenv
+load_dotenv()
+
+ACCESS_TOKEN = os.getenv("GPT_CONTROLLER_TOKEN")
 
 app = Flask(__name__)
 
+# 🔒 Токен-захист усіх запитів
+def check_token():
+    token = request.headers.get("Authorization")
+    if not token or token != ACCESS_TOKEN:
+        abort(401, description="Unauthorized")
+
+# 📥 Pull із GitHub
+@app.route("/pull", methods=["POST"])
+def pull_code():
+    check_token()
+    try:
+        os.chdir("/root/GPT_monitoring")
+        subprocess.run(["git", "pull"], check=True)
+        subprocess.run(["systemctl", "restart", "telegram_bot.service"], check=True)
+        return jsonify({"status": "ok", "message": "Код оновлено й бот перезапущено"}), 200
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+# 📖 Читання файлу
 @app.route("/read", methods=["GET"])
 def read_file():
+    check_token()
     filepath = request.args.get("file")
     if not filepath:
         return jsonify({"error": "No file specified"}), 400
@@ -16,8 +41,10 @@ def read_file():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+# 📝 Запис у файл
 @app.route("/write", methods=["POST"])
 def write_file():
+    check_token()
     data = request.get_json()
     filepath = data.get("file")
     content = data.get("content")
@@ -30,40 +57,19 @@ def write_file():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+# 🗑️ Видалення файлу
 @app.route("/delete", methods=["DELETE"])
 def delete_file():
+    check_token()
     filepath = request.args.get("file")
     if not filepath:
         return jsonify({"error": "No file specified"}), 400
     try:
         os.remove(filepath)
-        return jsonify({"status": "deleted", "file": filepath}), 200
+        return jsonify({"status": "success", "message": f"File {filepath} deleted"}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-@app.route("/exec", methods=["POST"])
-def exec_command():
-    data = request.get_json()
-    command = data.get("cmd")
-    if not command:
-        return jsonify({"error": "No command provided"}), 400
-    try:
-        output = subprocess.check_output(command, shell=True, stderr=subprocess.STDOUT, universal_newlines=True)
-        return jsonify({"output": output}), 200
-    except subprocess.CalledProcessError as e:
-        return jsonify({"error": e.output}), 500
-
-@app.route("/restart", methods=["POST"])
-def restart_service():
-    data = request.get_json()
-    service = data.get("service")
-    if not service:
-        return jsonify({"error": "No service specified"}), 400
-    try:
-        subprocess.run(["systemctl", "restart", service], check=True)
-        return jsonify({"status": f"Service {service} restarted"}), 200
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
+# ▶️ Запуск сервера
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=8998)
+    app.run(host="0.0.0.0", port=8998, debug=True)
