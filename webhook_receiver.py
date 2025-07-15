@@ -18,7 +18,7 @@ class WebhookHandler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(b'Server is running (GET ignored)')
 
-if name == "__main__":
+if __name__ == "__main__":
     server_address = ("0.0.0.0", 8989)
     httpd = HTTPServer(server_address, WebhookHandler)
     print("Webhook server running on port 8989...")
