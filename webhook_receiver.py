@@ -7,31 +7,29 @@ class WebhookHandler(BaseHTTPRequestHandler):
         content_length = int(self.headers.get('Content-Length', 0))
         post_data = self.rfile.read(content_length)
 
-        # Логування отриманого payload (для відладки)
         try:
-            data = json.loads(post_data)
-            print("Received Webhook Payload:")
-            print(json.dumps(data, indent=4))
-        except json.JSONDecodeError:
-            print("Invalid JSON received")
+            payload = json.loads(post_data.decode('utf-8'))
+            print("Received webhook payload:", payload)
 
-        # Автоматичне оновлення з GitHub
-        try:
-            subprocess.run(["git", "-C", "/root/GPT_monitoring", "pull"], check=True)
-            subprocess.run(["systemctl", "restart", "telegram_bot.service"], check=True)
-            print("🔄 Репозиторій оновлено і бот перезапущено.")
-        except subprocess.CalledProcessError as e:
-            print(f"❌ Помилка при оновленні або перезапуску: {e}")
+            # Запуск git pull та перезапуск бота
+            subprocess.run(["git", "-C", "/root/GPT_monitoring", "pull"])
+            subprocess.run(["systemctl", "restart", "telegram_bot.service"])
 
+            self.send_response(200)
+            self.end_headers()
+            self.wfile.write(b'Webhook received and processed.')
+        except Exception as e:
+            self.send_response(500)
+            self.end_headers()
+            self.wfile.write(f"Error: {str(e)}".encode())
+
+    def do_GET(self):
         self.send_response(200)
         self.end_headers()
-        self.wfile.write(b'Webhook received and processed.')
+        self.wfile.write(b'Service is running.')
 
-def run():
+if __name__ == '__main__':
     server_address = ('', 8989)
     httpd = HTTPServer(server_address, WebhookHandler)
-    print("✅ Webhook server running on port 8989...")
+    print('Starting webhook listener on port 8989...')
     httpd.serve_forever()
-
-if __name__ == "__main__":
-    run()
