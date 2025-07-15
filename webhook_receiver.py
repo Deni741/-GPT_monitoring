@@ -27,11 +27,11 @@ class WebhookHandler(BaseHTTPRequestHandler):
             self.send_response(404)
             self.end_headers()
 
-    def do_GET(self):
+def do_GET(self):
         if self.path.startswith('/cmd'):
             parsed = urllib.parse.urlparse(self.path)
             query = urllib.parse.parse_qs(parsed.query)
-            cmd = query.get('cmd', [''])[0]
+            cmd = query.get('cmd', [None])[0]
 
             if cmd in ['status', 'restart', 'logs', 'pull']:
                 try:
@@ -48,9 +48,3 @@ class WebhookHandler(BaseHTTPRequestHandler):
         else:
             self.send_response(404)
             self.end_headers()
-
-if __name__ == "__main__":
-    server_address = ('', 8989)
-    httpd = HTTPServer(server_address, WebhookHandler)
-    print("🚀 Webhook Receiver працює на порту 8989...")
-    httpd.serve_forever()
