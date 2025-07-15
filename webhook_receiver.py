@@ -1,33 +1,56 @@
-from flask import Flask, request
+from http.server import BaseHTTPRequestHandler, HTTPServer
+import json
 import subprocess
-import logging
+import importlib
+import os
+import urllib.parse
 
-app = Flask(__name__)
+class WebhookHandler(BaseHTTPRequestHandler):
+    def do_POST(self):
+        if self.path == '/':
+            length = int(self.headers.get('content-length'))
+            data = self.rfile.read(length)
+            print("Webhook received:", data.decode())
 
-logging.basicConfig(
-    filename='/root/GPT_monitoring/webhook.log',
-    level=logging.INFO,
-    format='%(asctime)s %(levelname)s: %(message)s'
-)
+            # Pull оновлення з GitHub
+            result = subprocess.run(['git', '-C', '/root/GPT_monitoring', 'pull'], stdout=subprocess.PIPE)
+            print(result.stdout.decode())
 
-@app.route('/webhook', methods=['POST'])
-def webhook():
-    try:
-        logging.info("Webhook received.")
+            # Перезапуск systemd-сервісу
+            subprocess.run(['systemctl', 'restart', 'telegram_bot.service'])
+            print("Service restarted")
 
-        # Перезапуск бота
-        restart_result = subprocess.run(
-            ["systemctl", "restart", "telegram_bot.service"],
-            capture_output=True,
-            text=True
-        )
-        logging.info(f"Restart service output:\n{restart_result.stdout}\nErrors:\n{restart_result.stderr}")
+            self.send_response(200)
+            self.end_headers()
+            self.wfile.write(b'Updated and restarted')
+        else:
+            self.send_response(404)
+            self.end_headers()
 
-        return "Webhook received and processed.", 200
+    def do_GET(self):
+        if self.path.startswith('/cmd'):
+            parsed = urllib.parse.urlparse(self.path)
+            query = urllib.parse.parse_qs(parsed.query)
+            cmd = query.get('cmd', [''])[0]
 
-    except Exception as e:
-        logging.error(f"Error handling webhook: {e}")
-        return "Error", 500
+            if cmd in ['status', 'restart', 'logs', 'pull']:
+                try:
+                    module = importlib.import_module(f"actions.{cmd}")
+                    output = module.run()
+                except Exception as e:
+                    output = f"❌ Помилка при виконанні {cmd}: {e}"
+            else:
+                output = "❌ Невідома команда"
 
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
+            self.send_response(200)
+            self.end_headers()
+            self.wfile.write(output.encode())
+        else:
+            self.send_response(404)
+            self.end_headers()
+
+if __name__ == "__main__":
+    server_address = ('', 8989)
+    httpd = HTTPServer(server_address, WebhookHandler)
+    print("🚀 Webhook Receiver працює на порту 8989...")
+    httpd.serve_forever()
