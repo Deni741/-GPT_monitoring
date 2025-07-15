@@ -1,50 +1,63 @@
-from http.server import BaseHTTPRequestHandler, HTTPServer
-import json
-import subprocess
-import importlib
 import os
-import urllib.parse
+import subprocess
+from http.server import BaseHTTPRequestHandler, HTTPServer
+from urllib.parse import urlparse, parse_qs
+import requests
+from dotenv import load_dotenv
+
+load_dotenv()
+
+TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
+TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
+
+def send_message(text):
+    if not TELEGRAM_TOKEN or not TELEGRAM_CHAT_ID:
+        return
+    url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
+    payload = {
+        "chat_id": TELEGRAM_CHAT_ID,
+        "text": text
+    }
+    try:
+        requests.post(url, data=payload)
+    except Exception as e:
+        print(f"Failed to send message: {e}")
 
 class WebhookHandler(BaseHTTPRequestHandler):
-    def do_POST(self):
-        if self.path == '/':
-            length = int(self.headers.get('content-length'))
-            data = self.rfile.read(length)
-            print("Webhook received:", data.decode())
+    def do_GET(self):
+        query = parse_qs(urlparse(self.path).query)
+        action = query.get('do', [None])[0]
 
-            # Pull оновлення з GitHub
-            result = subprocess.run(['git', '-C', '/root/GPT_monitoring', 'pull'], stdout=subprocess.PIPE)
-            print(result.stdout.decode())
-
-            # Перезапуск systemd-сервісу
-            subprocess.run(['systemctl', 'restart', 'telegram_bot.service'])
-            print("Service restarted")
-
-            self.send_response(200)
+        if not action:
+            self.send_response(400)
             self.end_headers()
-            self.wfile.write(b'Updated and restarted')
+            self.wfile.write(b"Missing 'do' parameter")
+            return
+
+        if action == "status":
+            output = subprocess.getoutput("systemctl status telegram_bot.service --no-pager")
+            send_message("🔍 STATUS:\n" + output[:4000])
+        elif action == "pull":
+            output = subprocess.getoutput("cd /root/GPT_monitoring && git pull")
+            send_message("📥 PULL:\n" + output[:4000])
+        elif action == "restart":
+            output = subprocess.getoutput("systemctl restart telegram_bot.service")
+            send_message("♻️ Бот перезапущено.")
+        elif action == "logs":
+            output = subprocess.getoutput("tail -n 40 /root/GPT_monitoring/update_log.txt")
+            send_message("🧾 Логи:\n" + output[:4000])
         else:
             self.send_response(404)
             self.end_headers()
+            self.wfile.write(b"Not found")
+            return
 
-def do_GET(self):
-        if self.path.startswith('/cmd'):
-            parsed = urllib.parse.urlparse(self.path)
-            query = urllib.parse.parse_qs(parsed.query)
-            cmd = query.get('cmd', [None])[0]
+        self.send_response(200)
+        self.end_headers()
+        self.wfile.write(b"OK")
 
-            if cmd in ['status', 'restart', 'logs', 'pull']:
-                try:
-                    module = importlib.import_module(f"actions.{cmd}")
-                    output = module.run()
-                except Exception as e:
-                    output = f"❌ Помилка при виконанні {cmd}: {e}"
-            else:
-                output = "❌ Невідома команда"
-
-            self.send_response(200)
-            self.end_headers()
-            self.wfile.write(output.encode())
-        else:
-            self.send_response(404)
-            self.end_headers()
+if __name__ == "__main__":
+    server_address = ("", 8989)
+    httpd = HTTPServer(server_address, WebhookHandler)
+    print("✅ Webhook server is running on port 8989...")
+    httpd.serve_forever()
