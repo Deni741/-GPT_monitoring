@@ -1,95 +1,69 @@
 import os
-import logging
-from dotenv import load_dotenv
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import (
-    ApplicationBuilder,
-    CommandHandler,
-    ContextTypes,
-    MessageHandler,
-    filters,
-    CallbackQueryHandler
-)
+from telegram.ext import Application, CommandHandler, MessageHandler, filters, CallbackQueryHandler, ContextTypes
 from openai import OpenAI
-import asyncio
-import subprocess
+from push_handler import handle_push
 
-# 1. Завантаження змінних середовища
-load_dotenv()
+openai_api_key = os.getenv("OPENAI_API_KEY")
+client = OpenAI(api_key=openai_api_key)
+
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
-TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
-# 2. Налаштування логування
-logging.basicConfig(
-    format="%(asctime)s - %(levelname)s - %(message)s",
-    level=logging.INFO,
-)
-
-# 3. Ініціалізація OpenAI
-client = OpenAI(api_key=OPENAI_API_KEY)
-
-# 4. Обробник команди /start з меню
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    menu_keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="🧠 GPT", callback_data="ask_gpt")],
-        [InlineKeyboardButton(text="📊 Аналіз", callback_data="analyze")],
-        [InlineKeyboardButton(text="🚀 PUSH", callback_data="show_push")]
-    ])
-    
-    await update.message.reply_text(
-        "Привіт! Надішли мені запит або скористайся кнопками нижче 👇",
-        reply_markup=menu_keyboard
-    )
+    keyboard = [
+        [InlineKeyboardButton("🧠 GPT", callback_data="ask_gpt")],
+        [InlineKeyboardButton("📊 Аналіз", callback_data="analyze")],
+        [InlineKeyboardButton("🚀 PUSH", callback_data="show_push")]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
 
-# 5. Обробка /ask
-async def ask(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    prompt = " ".join(context.args)
-    if not prompt:
-        await update.message.reply_text("Будь ласка, введи запит після команди /ask")
-        return
-    try:
-        response = client.chat.completions.create(
-            model="gpt-4",
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.7,
+    if update.message:
+        await update.message.reply_text(
+            "Привіт! Надішли мені запит або скористайся кнопками нижче:",
+            reply_markup=reply_markup
         )
-        reply_text = response.choices[0].message.content
-        await update.message.reply_text(reply_text)
-    except Exception as e:
-        await update.message.reply_text(f"❌ Помилка GPT:\n{e}")
+    elif update.callback_query:
+        await update.callback_query.message.reply_text(
+            "Привіт! Надішли мені запит або скористайся кнопками нижче:",
+            reply_markup=reply_markup
+        )
 
-# 6. Обробка всіх кнопок
-async def handle_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-    
-    if query.data == "ask_gpt":
-        await query.message.reply_text("✍️ Введи запит, який хочеш задати GPT.")
-    elif query.data == "analyze":
-        await query.message.reply_text("📊 Аналіз в розробці.")
-    elif query.data == "show_push":
-        await query.edit_message_text("📤 Відправляю всі зміни в GitHub...")
-        try:
-            result = subprocess.run(
-                ['python3', '/root/GPT_monitoring/auto_git_pusher.py'],
-                capture_output=True,
-                text=True
-            )
-            if result.returncode == 0:
-                await query.message.reply_text("✅ PUSH виконано успішно.")
-            else:
-                await query.message.reply_text(f"❌ Помилка під час PUSH:\n{result.stderr}")
-        except Exception as e:
-            await query.message.reply_text(f"❌ Вийняток:\n{str(e)}")
+async def ask(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.message.text
+    if not query:
+        await update.message.reply_text("Напиши текст для запиту.")
+        return
 
-# 7. Запуск
-if __name__ == "__main__":
-    app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
+    response = client.chat.completions.create(
+        model="gpt-4",
+        messages=[{"role": "user", "content": query}]
+    )
+    await update.message.reply_text(response.choices[0].message.content)
+
+def main():
+    app = Application.builder().token(TELEGRAM_TOKEN).build()
 
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("ask", ask))
-    app.add_handler(CallbackQueryHandler(handle_button))  # 🔁 Один універсальний обробник
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, ask))
+    app.add_handler(CallbackQueryHandler(handle_push, pattern="^show_push$"))
 
-    print("✅ Бот запущено. Очікування повідомлень...")
+    print("🤖 Бот запущено!")
     app.run_polling()
+
+if __name__ == "__main__":
+    main()
+from push_handler import handle_push
+
+# У функції start_handler
+keyboard = [
+    [InlineKeyboardButton("🤖 GPT", callback_data='gpt')],
+    [InlineKeyboardButton("📈 Аналіз", callback_data='analyze')],
+    [InlineKeyboardButton("📤 PUSH", callback_data='push')]
+]
+reply_markup = InlineKeyboardMarkup(keyboard)
+await update.message.reply_text("Привіт! Надішли мені запит або скористайся командою /ask", reply_markup=reply_markup)
+
+# У функції callback_handler
+if query.data == "push":
+    await handle_push(query, context)

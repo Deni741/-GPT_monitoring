@@ -1,12 +1,17 @@
+from telegram import Update
+from telegram.ext import ContextTypes
 import subprocess
-import datetime
 
-async def handle_push():
+async def handle_push(query, context: ContextTypes.DEFAULT_TYPE):
+    await query.message.reply_text("📤 Відправляю всі зміни в GitHub...")
     try:
-        timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        subprocess.run(["git", "add", "."], check=True)
-        subprocess.run(["git", "commit", "-m", f"🔄 Auto push {timestamp}"], check=True)
-        subprocess.run(["git", "push"], check=True)
-        print("✅ PUSH виконано успішно.")
-    except subprocess.CalledProcessError as e:
-        print("❌ Помилка під час PUSH:", e)
+        result = subprocess.run(
+            ["python3", "/root/GPT_monitoring/auto_git_pusher.py"],
+            capture_output=True, text=True
+        )
+        if result.returncode == 0:
+            await query.message.reply_text("✅ PUSH виконано успішно.")
+        else:
+            await query.message.reply_text(f"❌ ПОМИЛКА:\n{result.stderr}")
+    except Exception as e:
+        await query.message.reply_text(f"❌ Виняток:\n{e}")
