@@ -1,3 +1,6 @@
+import os
+from dotenv import load_dotenv
+load_dotenv()
 from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, MessageHandler, filters, ContextTypes
 from file_manager import read_file, write_file, create_file, delete_file, list_files
@@ -86,9 +89,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Псевдозапит — підставляй свій GPT-запит або обробку
         await update.message.reply_text("⏳ Обробка GPT-запиту (заглушка)...")
 
-# Запуск бота
-if __name__ == '__main__':
-    app = ApplicationBuilder().token("ТУТ_ТВОЙ_ТОКЕН").build()
+# 🔁 Запуск бота
+if __name__ == "__main__":
+    import os
+    app = ApplicationBuilder().token(os.getenv("TELEGRAM_TOKEN")).build()
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CallbackQueryHandler(button_handler))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))

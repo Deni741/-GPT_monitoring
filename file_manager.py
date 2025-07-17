@@ -1,4 +1,4 @@
-kimport os
+import os
 
 def read_file(path):
     if not os.path.exists(path):
