@@ -1,0 +1,65 @@
+# 🧠 Додаткові покращення для кастомного GPT-агента (українською)
+# Збережи цей файл як `IMPROVEMENTS_UA.md` у корені проєкту,
+# щоб GPT-агент міг його читати як інструкцію.
+
+---
+
+## 1. Повноцінна локальна пам’ять та індекс знань
+| Компонент | Завдання | Як встановити |
+|-----------|----------|---------------|
+| ChromaDB  | Швидкий векторний пошук по `Memory/` | `pip install chromadb` |
+| sentence-transformers | Локальні ембеддінги (без OpenAI) | `pip install sentence-transformers` |
+| rank_bm25 | Класичний ключовий пошук як fallback | `pip install rank_bm25` |
+
+Файл-заготовка: `memory_index.py`  
+- індексує всі `.txt`, `.md`, `.py` з `Memory/` при старті;  
+- додає команду `/index rebuild`, щоб перебудувати індекс вручну.
+
+---
+
+## 2. Автономна робота з Git
+| Що | Як користуватися |
+|----|------------------|
+| GitHub fine-grained token | `contents:write`, `pull_requests:write` |
+| executor.py додати функції | `git_pull()`, `git_push(commit_msg)` |
+| Telegram-команди | `/pull` – оновитись з репо, `/push "коміт"` – залити зміни |
+| Безпека | за замовчуванням GPT чекає `/approve`, але можна `--auto-approve` |
+
+---
+
+## 3. Самопокращення + безпека
+- **pytest** – кожен новий модуль GPT створює `test_*.py`.  
+- **pre-commit hook** – перед push запускає `pytest`.  
+- **rollback** – якщо тести не проходять → `git reset --hard HEAD~1`.
+
+---
+
+## 4. Логування й моніторинг
+- `pip install structlog watchdog`  
+- `logs/` – збереження структурованих логів.  
+- `watchdog` – відстежує зміни в `src/` та надсилає сповіщення в Telegram.
+
+---
+
+## 5. Приклад мікро-фічі «/weather» для перевірки
+Команда користувача:  
+`/task Додати команду /weather, що повертає прогноз OpenWeatherMap`
+
+GPT:
+1. Читає `Memory/weather_example.py` (якщо є).  
+2. Генерує `src/handlers/weather.py`.  
+3. Імпортує його в `main.py`.  
+4. Створює `tests/test_weather.py`.  
+5. Запускає `pytest`.  
+6. Якщо успішно – `git commit -m "feat: add /weather handler"` і push.
+
+---
+
+## 📌 Наступний мінімальний спринт (1–2 години)
+1. `pip install chromadb sentence-transformers rank_bm25 structlog watchdog`  
+2. Створити `memory_index.py`  
+3. Додати функції `git_pull()` / `git_push()` до `executor.py`  
+4. Додати Telegram-команду `/index rebuild`  
+5. Запустити тестову фічу `/weather`
+
+Готово – тепер GPT-агент може сам читати цей файл і виконувати пункти по черзі.
