@@ -1,0 +1,5 @@
+{
+  "action": "autopush",
+  "path": "Memory/test_autopush.py",
+  "content": "def test_autopush():\n    assert 2 + 2 == 4"
+}

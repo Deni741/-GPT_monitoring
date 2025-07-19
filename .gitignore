@@ -6,4 +6,5 @@ bot_token.txt
 nohup.out
 *.save
 __pycache__/
-.env
+.env.env
+.env.local

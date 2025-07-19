@@ -29,3 +29,11 @@ def list_files(directory):
         return f"❌ Директорія {directory} не знайдена."
     files = os.listdir(directory)
     return "\n".join(files) if files else "📂 Папка порожня."
+
+def edit_file(path, new_content):
+    try:
+        with open(path, "w", encoding="utf-8") as file:
+            file.write(new_content)
+        return f"✅ Файл оновлено: {path}"
+    except Exception as e:
+        return f"❌ Помилка при редагуванні файлу: {str(e)}"
